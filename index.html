@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>BOUNDARY DEFENDER: Fullscreen Mobile</title>
+    <!-- Bootstrap 5 CSS CDN -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+        }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            background-color: #0d0f18;
+            font-family: system-ui, -apple-system, sans-serif;
+            position: fixed; /* Mencegah layar geser/scroll di HP */
+        }
+
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            width: 100dvh;
+            height: 100dvh;
+            background: radial-gradient(circle, #1a1c2e 0%, #080911 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        canvas {
+            display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        .ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 2;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 10px;
+        }
+
+        .hud-card {
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            pointer-events: auto;
+        }
+
+        .mobile-controls {
+            position: absolute;
+            bottom: 10px;
+            left: 0;
+            width: 100%;
+            z-index: 3;
+            pointer-events: none;
+        }
+
+        .d-pad-btn {
+            width: 48px;
+            height: 48px;
+            pointer-events: auto;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            background: rgba(30, 41, 59, 0.85);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #ffffff;
+        }
+
+        .d-pad-btn:active, .d-pad-btn.active {
+            background-color: #0d6efd !important;
+            border-color: #0d6efd !important;
+        }
+
+        .shoot-btn {
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            pointer-events: auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            box-shadow: 0 4px 15px rgba(13, 110, 253, 0.5);
+        }
+
+        .screen-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(10, 11, 20, 0.95);
+            backdrop-filter: blur(10px);
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: auto;
+            padding: 15px;
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #0dcaf0, #0d6efd);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- UI Overlay -->
+    <div class="ui-layer container-fluid">
+        <div class="row w-100 m-0 align-items-start justify-content-between">
+            <div class="col-8 col-md-5 col-lg-4 p-0">
+                <div class="hud-card p-2 rounded-3 shadow">
+                    <div class="mb-1">
+                        <div class="d-flex justify-content-between align-items-center" style="font-size: 10px;">
+                            <span class="badge bg-danger">HP</span>
+                            <small id="hp-val" class="fw-bold text-light">100/100</small>
+                        </div>
+                        <div class="progress bg-dark" style="height: 6px;">
+                            <div id="hp-fill" class="progress-bar bg-danger" style="width: 100%"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="d-flex justify-content-between align-items-center" style="font-size: 10px;">
+                            <span class="badge bg-primary">STAMINA</span>
+                            <small id="stamina-val" class="fw-bold text-light">100/100</small>
+                        </div>
+                        <div class="progress bg-dark" style="height: 6px;">
+                            <div id="stamina-fill" class="progress-bar bg-primary" style="width: 100%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Virtual Mobile Controller -->
+    <div class="mobile-controls container-fluid px-3">
+        <div class="row align-items-center justify-content-between">
+            <div class="col-auto">
+                <div class="d-flex flex-column align-items-center">
+                    <button class="btn d-pad-btn mb-1" id="btn-up"><i class="bi bi-caret-up-fill"></i></button>
+                    <div class="d-flex gap-1">
+                        <button class="btn d-pad-btn" id="btn-left"><i class="bi bi-caret-left-fill"></i></button>
+                        <button class="btn d-pad-btn" id="btn-down"><i class="bi bi-caret-down-fill"></i></button>
+                        <button class="btn d-pad-btn" id="btn-right"><i class="bi bi-caret-right-fill"></i></button>
+                    </div>
+                </div>
+            </div>
+            <div class="col-auto">
+                <button class="btn btn-primary shoot-btn" id="btn-shoot">
+                    <i class="bi bi-crosshair fs-4"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Start Screen -->
+    <div id="start-screen" class="screen-overlay">
+        <div class="card bg-dark text-light border-secondary shadow-lg rounded-4 text-center p-3" style="max-width: 400px; width: 100%;">
+            <h3 class="fw-bold gradient-text mb-1">BOUNDARY DEFENDER</h3>
+            <p class="text-info small mb-2">Mobile Version</p>
+            <p class="text-secondary small mb-3" style="font-size: 11px;">
+                🎯 <strong>Tembak respons ASERTIF</strong><br>
+                ⚠️ <strong>Hindari PEOPLE PLEASING</strong>
+            </p>
+            <button class="btn btn-primary w-100 fw-bold py-2" id="start-btn">MULAI PERTAHANAN</button>
+        </div>
+    </div>
+
+    <!-- Ending Screen -->
+    <div id="ending-screen" class="screen-overlay d-none">
+        <div class="card bg-dark text-light border-secondary shadow-lg rounded-4 text-center p-3" style="max-width: 400px; width: 100%;">
+            <span id="ending-type-label" class="badge bg-secondary mb-2">ENDING</span>
+            <h4 id="ending-title" class="fw-bold mb-2">BENTENG RUNTUH</h4>
+            <p id="ending-desc" class="text-secondary small mb-2" style="font-size: 11px;">Deskripsi...</p>
+            <div class="p-2 bg-secondary bg-opacity-10 rounded-3 mb-3">
+                <p id="ending-reflection" class="fst-italic text-light small mb-0" style="font-size: 11px;">Refleksi...</p>
+            </div>
+            <button class="btn btn-primary w-100 fw-bold py-2" id="restart-btn">MAIN LAGI</button>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+const hpFill = document.getElementById('hp-fill');
+const hpVal = document.getElementById('hp-val');
+const staminaFill = document.getElementById('stamina-fill');
+const staminaVal = document.getElementById('stamina-val');
+const startScreen = document.getElementById('start-screen');
+const endingScreen = document.getElementById('ending-screen');
+const startBtn = document.getElementById('start-btn');
+const restartBtn = document.getElementById('restart-btn');
+
+let gameActive = false;
+let animationFrameId;
+let canvasWidth, canvasHeight;
+
+const player = {
+    x: 0, y: 0, radius: 16, color: '#0dcaf0',
+    speed: 4, hp: 100, maxHp: 100, stamina: 100, maxStamina: 100,
+    assertiveHits: 0, wrongChoicesHit: 0
+};
+
+const keys = {};
+let bullets = [];
+let targetEnemies = [];
+let particles = [];
+let waveTimer = 0;
+
+const CHOICE_PROMPTS = [
+    {
+        prompt: "Kerjakan tugasku sekarang!",
+        choices: [
+            { text: "Duh maaf ya, ga enak...", type: "PLEASING" },
+            { text: "Tidak, jadwal saya penuh.", type: "ASSERTIVE" }
+        ]
+    },
+    {
+        prompt: "Kamu harus ikut acara kita!",
+        choices: [
+            { text: "Iya deh, aku paksa ikut.", type: "PLEASING" },
+            { text: "Saya butuh istirahat.", type: "ASSERTIVE" }
+        ]
+    },
+    {
+        prompt: "Bisa gantiin shift-ku?",
+        choices: [
+            { text: "Siap, tugasku ditunda!", type: "PLEASING" },
+            { text: "Maaf, ada prioritas lain.", type: "ASSERTIVE" }
+        ]
+    }
+];
+
+function resizeCanvas() {
+    canvasWidth = window.innerWidth;
+    canvasHeight = window.innerHeight;
+    canvas.width = canvasWidth;
+    canvas.height = canvasHeight;
+    if (!gameActive) {
+        player.x = canvasWidth / 2;
+        player.y = canvasHeight / 2;
+    }
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+window.addEventListener('keydown', (e) => { keys[e.key.toLowerCase()] = true; });
+window.addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; });
+
+function bindTouchControl(id, keyName) {
+    const btn = document.getElementById(id);
+    const activate = (e) => { e.preventDefault(); keys[keyName] = true; btn.classList.add('active'); };
+    const deactivate = (e) => { e.preventDefault(); keys[keyName] = false; btn.classList.remove('active'); };
+    btn.addEventListener('touchstart', activate, {passive: false});
+    btn.addEventListener('touchend', deactivate, {passive: false});
+    btn.addEventListener('mousedown', activate);
+    btn.addEventListener('mouseup', deactivate);
+}
+
+bindTouchControl('btn-up', 'w');
+bindTouchControl('btn-left', 'a');
+bindTouchControl('btn-right', 'd');
+bindTouchControl('btn-down', 's');
+
+const shootBtn = document.getElementById('btn-shoot');
+const triggerShoot = (e) => {
+    e.preventDefault();
+    if (gameActive) shootBulletTowardNearest();
+};
+shootBtn.addEventListener('touchstart', triggerShoot, {passive: false});
+shootBtn.addEventListener('click', triggerShoot);
+
+function shootBulletTowardNearest() {
+    if (player.stamina < 5) return;
+    player.stamina -= 4;
+
+    let targetAngle = -Math.PI / 2;
+    if (targetEnemies.length > 0) {
+        let nearest = targetEnemies[0];
+        let minDist = Math.hypot(nearest.x - player.x, nearest.y - player.y);
+        for (let i = 1; i < targetEnemies.length; i++) {
+            let dist = Math.hypot(targetEnemies[i].x - player.x, targetEnemies[i].y - player.y);
+            if (dist < minDist) {
+                minDist = dist;
+                nearest = targetEnemies[i];
+            }
+        }
+        targetAngle = Math.atan2(nearest.y - player.y, nearest.x - player.x);
+    }
+
+    bullets.push({
+        x: player.x, y: player.y,
+        vx: Math.cos(targetAngle) * 10,
+        vy: Math.sin(targetAngle) * 10,
+        radius: 4
+    });
+}
+
+function spawnChoiceGroup() {
+    const data = CHOICE_PROMPTS[Math.floor(Math.random() * CHOICE_PROMPTS.length)];
+    const shuffledChoices = [...data.choices].sort(() => Math.random() - 0.5);
+
+    const boxWidth = Math.min(200, canvasWidth * 0.42);
+    const spawnX = Math.random() * (canvasWidth - boxWidth * 2 - 20) + boxWidth + 10;
+    const spawnY = -50;
+
+    shuffledChoices.forEach((choice, idx) => {
+        targetEnemies.push({
+            x: spawnX + (idx * (boxWidth + 15) - (boxWidth + 15)/2),
+            y: spawnY,
+            promptText: data.prompt,
+            text: choice.text,
+            type: choice.type,
+            width: boxWidth,
+            height: 44,
+            speed: 0.75
+        });
+    });
+}
+
+function update() {
+    if (!gameActive) return;
+
+    if (keys['w'] || keys['arrowup']) player.y -= player.speed;
+    if (keys['s'] || keys['arrowdown']) player.y += player.speed;
+    if (keys['a'] || keys['arrowleft']) player.x -= player.speed;
+    if (keys['d'] || keys['arrowright']) player.x += player.speed;
+
+    player.x = Math.max(player.radius, Math.min(canvasWidth - player.radius, player.x));
+    player.y = Math.max(player.radius, Math.min(canvasHeight - player.radius - 100, player.y));
+
+    player.stamina = Math.min(player.maxStamina, player.stamina + 0.3);
+
+    bullets.forEach((b, bIdx) => {
+        b.x += b.vx;
+        b.y += b.vy;
+
+        targetEnemies.forEach((e, eIdx) => {
+            if (b.x > e.x - e.width/2 && b.x < e.x + e.width/2 &&
+                b.y > e.y - e.height/2 && b.y < e.y + e.height/2) {
+                
+                if (e.type === 'ASSERTIVE') {
+                    player.assertiveHits++;
+                } else {
+                    player.hp -= 25;
+                    player.wrongChoicesHit++;
+                }
+                bullets.splice(bIdx, 1);
+                targetEnemies.splice(eIdx, 1);
+            }
+        });
+
+        if (b.x < 0 || b.x > canvasWidth || b.y < 0 || b.y > canvasHeight) {
+            bullets.splice(bIdx, 1);
+        }
+    });
+
+    targetEnemies.forEach((e, eIdx) => {
+        e.y += e.speed;
+        const dist = Math.hypot(e.x - player.x, e.y - player.y);
+        if (dist < player.radius + 20 || e.y > canvasHeight + 50) {
+            if (e.type === 'PLEASING') player.hp -= 15;
+            targetEnemies.splice(eIdx, 1);
+        }
+    });
+
+    waveTimer++;
+    if (waveTimer % 240 === 0) spawnChoiceGroup();
+
+    hpFill.style.width = `${Math.max(0, player.hp)}%`;
+    hpVal.innerText = `${Math.ceil(Math.max(0, player.hp))}/100`;
+
+    staminaFill.style.width = `${Math.max(0, player.stamina)}%`;
+    staminaVal.innerText = `${Math.ceil(Math.max(0, player.stamina))}/100`;
+
+    if (player.hp <= 0) triggerEnding('BURNOUT');
+    else if (player.assertiveHits >= 5) {
+        if (player.wrongChoicesHit > 2) triggerEnding('MIXED');
+        else triggerEnding('HEALTHY');
+    }
+}
+
+function render() {
+    ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+    if (!gameActive) return;
+
+    ctx.beginPath();
+    ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2);
+    ctx.fillStyle = player.color;
+    ctx.fill();
+
+    bullets.forEach(b => {
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2);
+        ctx.fillStyle = '#ffffff';
+        ctx.fill();
+    });
+
+    targetEnemies.forEach(e => {
+        ctx.fillStyle = '#1e293b';
+        ctx.strokeStyle = '#475569';
+        ctx.lineWidth = 1;
+        ctx.fillRect(e.x - e.width/2, e.y - e.height/2, e.width, e.height);
+        ctx.strokeRect(e.x - e.width/2, e.y - e.height/2, e.width, e.height);
+
+        ctx.font = '9px sans-serif';
+        ctx.fillStyle = '#94a3b8';
+        ctx.textAlign = 'center';
+        ctx.fillText(`"${e.promptText}"`, e.x, e.y - e.height/2 - 5);
+
+        ctx.font = '9px sans-serif';
+        ctx.fillStyle = '#f8fafc';
+        ctx.fillText(e.text, e.x, e.y + 3, e.width - 8);
+    });
+}
+
+function gameLoop() {
+    update();
+    render();
+    animationFrameId = requestAnimationFrame(gameLoop);
+}
+
+function triggerEnding(type) {
+    gameActive = false;
+    endingScreen.classList.remove('d-none');
+    const label = document.getElementById('ending-type-label');
+    const title = document.getElementById('ending-title');
+    const desc = document.getElementById('ending-desc');
+    const refl = document.getElementById('ending-reflection');
+
+    if (type === 'BURNOUT') {
+        label.innerText = 'BURNOUT';
+        title.innerText = 'BENTENG RUNTUH';
+        desc.innerText = 'Terlalu sering mengalah pada tuntutan luar.';
+        refl.innerText = 'Energi jiwamu habis karena lupa menyisakan ruang untuk diri sendiri.';
+    } else if (type === 'MIXED') {
+        label.innerText = 'SEPARSIAL';
+        title.innerText = 'PERTAHANAN RAGU';
+        desc.innerText = 'Mulai menetapkan batas tapi masih sering ragu.';
+        refl.innerText = 'Konsistensi adalah kunci dalam menjaga kapasitas diri.';
+    } else {
+        label.innerText = 'SEHAT';
+        title.innerText = 'BENTENG KOKOH';
+        desc.innerText = 'Berhasil menargetkan respons Asertif dengan tepat!';
+        refl.innerText = 'Batasan yang jelas membuat hubungan jauh lebih sehat.';
+    }
+}
+
+function startGame() {
+    player.hp = 100; player.stamina = 100;
+    player.assertiveHits = 0; player.wrongChoicesHit = 0;
+    player.x = canvasWidth / 2; player.y = canvasHeight / 2 - 30;
+    bullets = []; targetEnemies = []; waveTimer = 0;
+    startScreen.classList.add('d-none');
+    endingScreen.classList.add('d-none');
+    gameActive = true;
+    cancelAnimationFrame(animationFrameId);
+    spawnChoiceGroup();
+    gameLoop();
+}
+
+startBtn.addEventListener('click', startGame);
+startBtn.addEventListener('touchstart', (e) => { e.preventDefault(); startGame(); });
+restartBtn.addEventListener('click', startGame);
+restartBtn.addEventListener('touchstart', (e) => { e.preventDefault(); startGame(); });
+</script>
+</body>
+</html>
